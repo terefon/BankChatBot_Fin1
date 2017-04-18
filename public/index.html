@@ -1,0 +1,198 @@
+<html>
+
+<head>
+	<base href="/">
+	<title>UPS Chatbot</title>
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<meta http-equiv="X-UA-Compatible" content="IE=edge">
+	<meta property="og:image" content="conversation.svg" />
+	<meta property="og:title" content="Conversation Chat Simple" />
+	<meta property="og:description" content="Sample application that shows how to use the Conversation API to identify user intents"
+	/>
+	<link rel="shortcut icon" href="favicon.ico" type="image/x-icon">
+	<link href="https://fonts.googleapis.com/css?family=Open+Sans" rel="stylesheet">
+	<link rel="stylesheet" href="css/style.css">
+	<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.6.3/css/font-awesome.min.css">
+	<script   src="https://code.jquery.com/jquery-3.1.1.js"   integrity="sha256-16cdPddA6VdVInumRGo6IbivbERE8p7CQR3HzTBuELA="   crossorigin="anonymous"></script>
+
+</head>
+
+<body>
+	<div class="logo-s">
+		<img src="images/FPT-Software-Doc@350.png"/>
+	</div>
+	<section class="_full-width-row conversationSection" id='conversationSection'>
+			<div id="contentParent" class="responsive-columns-wrapper">
+				<div id="chat-column-holder" class="responsive-column content-column">
+					<div class="chat-column">
+					<div class="chat-column-inside">
+					<div class="main-box">
+						<div class="chat-header">
+							<hr class="line-header"/>
+							<hr class="line-header-with-image"/>
+							<div class="bot-avatar"></div>
+							<div class="bot-info">
+								<span class="bot-info-header">UPS Chatbot</span>
+								<span class="bot-info-body">Atlanta, Georgia, United States</span>
+								<div class="bot-info-body" style="margin-left:10px">
+									<span style="width:10px"></span>
+									<span style="margin-left:20px">1-800-742-5877</span>
+									<span style="margin-left:10px">UPS.COM</span>
+								</div>
+							</div>							
+						</div>
+						<hr/>
+						<div id="scrollingChat" class='scrollingChat'></div>
+						<p id="loadingChat" class="isTyping"><span><i class="fa fa-pencil" aria-hidden="true"></i> Bot is typing<span id="loadingDots"></span><span></p>
+						<label for="textInputOne" class="inputOutline">
+							<input id="textInputOne" class="base--input query-input"
+							placeholder="Start typing..." type="text"
+							onkeyup="ConversationPanel.inputKeyDown(event, this)">	
+								<div class="inputBefore"></div>
+						</label>
+						<div class="div-button">
+						    <button class="btn-record"  onclick="toggleStartStop()">
+								<div id="record_image" class="img-record-on"/>
+							</button>
+							<button class="btn-send" id="send_text"  style="visibility: hidden;" onclick="ConversationPanel.submitInputOnClicked(event, this)">
+								<div class="img-send"/>
+							</button>
+						</div>
+						<div>
+							
+						</div>
+					</div>
+					</div>
+					</div>
+				</div>
+			</div>
+	</section>
+	<script>
+
+	var audio_context;
+	var recorder;
+	var recognizing;
+    var recognition = new webkitSpeechRecognition();
+    recognition.continuous = false;
+	recognition.lang = 'en-US';
+    reset();
+    recognition.onend = reset;
+
+    recognition.onresult = function (event) {
+		console.log(event.results);
+      for (var i = 0; i < event.results.length; ++i) {
+		if (event.results[i].isFinal) {
+          console.log(event.results[i][0].transcript);
+		  document.getElementById('textInputOne').value = event.results[i][0].transcript;
+		  document.getElementById('send_text').click();
+		  break;
+        } else
+		{
+			console.log(event.results[i][0].transcript);
+			document.getElementById('textInputOne').value = event.results[i][0].transcript;
+		}
+      }
+    }
+
+    function reset() {
+      recognizing = false;
+	  document.getElementById('record_image').className = 'img-record-on';
+    }
+
+    function toggleStartStop() {
+      if (recognizing) {
+        recognition.stop();
+        reset();
+      } else {
+        recognition.start();
+        recognizing = true;
+		document.getElementById('record_image').className = 'img-record-off';
+      }
+    }
+
+	  function startUserMedia(stream) {
+		var input = audio_context.createMediaStreamSource(stream);
+		console.log('Media stream created.');
+
+		// Uncomment if you want the audio to feedback directly
+		//input.connect(audio_context.destination);
+		//__log('Input connected to audio context destination.');
+		
+		recorder = new Recorder(input);
+		console.log('Recorder initialised.');
+	  }
+
+	  function startRecording(button) {
+		recorder && recorder.record();
+		button.style.display = "none";
+		button.nextElementSibling.style.display = 'block';
+		console.log('Recording...');
+	  }
+
+	  function stopRecording(button) {
+		recorder && recorder.stop();
+		button.style.display = "none";
+		button.previousElementSibling.style.display = 'block';
+		console.log('Stopped recording.');
+		
+		// create WAV download link using audio data blob
+		//createDownloadLink();
+		send_to_google_api();
+		
+		recorder && recorder.clear();
+	  }
+	  
+	  
+	  function send_to_google_api(){
+		  recorder && recorder.exportWAV(function(blob) {
+		var audio_content;
+		var reader = new FileReader(); // data url!
+		reader.onload = function(){
+		  // here you'll call what to do with the base64 string result
+		  audio_content = this.result;
+		  var data = { 'audio': audio_content };
+		  ConversationPanel.send_recognize(data);
+		  };
+
+		reader.readAsDataURL(blob);
+		  
+		});
+		}
+
+	  window.onload = function init() {
+
+		try {
+		  // webkit shim
+		  window.AudioContext = window.AudioContext || window.webkitAudioContext;
+		  navigator.getUserMedia =  navigator.getUserMedia ||
+                         navigator.webkitGetUserMedia ||
+                         navigator.mozGetUserMedia ||
+						 navigator.msGetUserMedia;
+		  window.URL = window.URL || window.webkitURL;
+		  
+		  console.log(window.AudioContext);
+		  console.log(navigator.getUserMedia);
+		  
+		  
+		  audio_context = new AudioContext;
+		  console.log('Audio context set up.');
+		  console.log('navigator.getUserMedia ' + (navigator.getUserMedia ? 'available.' : 'not present!'));
+		  
+
+		} catch (e) {
+		  alert('No web audio support in this browser!');
+		}
+		
+		navigator.getUserMedia({audio: true}, startUserMedia, function(e) {
+		  console.log('No live audio input: ' + e);
+		});
+	  };
+	</script>
+	<script src="js/jquery-dateFormat.js"></script>
+	<script src="js/common.js"></script>
+	<script src="js/api.js"></script>
+	<script src="js/conversation.js"></script>
+	<script src="js/global.js"></script>
+	<script src="js/recorder.js"></script>
+</body>
+</html>
